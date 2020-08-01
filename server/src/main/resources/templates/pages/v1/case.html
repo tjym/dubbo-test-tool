@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8" />
+    <title>svr-test</title>
+    <link rel="stylesheet" th:href="@{~/v1/assets/css/chosen.css}" />
+    <link rel="stylesheet" th:href="@{~/v1/assets/css/bootstrap-table.min.css}" />
+    <link rel="stylesheet" th:href="@{~/v1/assets/css/toastr.min.css}" />
+    <link rel="stylesheet" th:href="@{~/v1/assets/css/highlight.css}" />
+
+    <script th:replace="/pages/tpl/head::header"></script>
+</head>
+<body>
+<div th:replace="/pages/tpl/top::topper"></div>
+<div class="main-container" id="main-container">
+    <script type="text/javascript">
+        try {
+            ace.settings.check('main-container', 'fixed')
+        } catch (e) {
+        }
+
+    </script>
+    <div class="main-container-inner">
+<!--        <div th:replace="/pages/tpl/menu::menuer"></div>-->
+        <div th:utext="${menuHtml}"></div>
+        <div class="main-content ">
+            <div th:replace="/pages/tpl/bread::breader"></div>
+            <div class="col-xs-4" style="padding-top:10px;border-right-style:solid;border-right-width:thin;border-right-color:RGB(241,241,241);">
+                <div style="display:flex;" >
+                    <div>
+                        <label >服务信息：</label>
+                        <select id="svr-list" onchange="svrChange(this)" style="width: 150px">
+                        </select>
+                    </div>
+                    <div>
+                        <label >方法信息：</label>
+                        <select id="method-list" onchange="methodChange(this)" style="width: 150px">
+                        </select>
+                    </div>
+                </div>
+                <div class="btn-group" style="margin-top: 10px;">
+                    <button class="btn btn-info btn-sm" onclick="addCase()">添加</button>
+                    <button class="btn btn-info btn-sm" onclick="deleteCase();">删除</button>
+                </div>
+                <table id="case-list" style="margin-top: 10px;"></table>
+            </div>
+            <div class="divider"></div>
+            <div class="col-xs-4" style="padding-top:10px;border-right-style:solid;border-right-width:thin;border-right-color:RGB(241,241,241);" >
+                <div style="display: flex;margin-left: 10px;" class="col-xs-12" >
+                    <label >名称：</label>
+                    <input id="caseName" style="width: 90%" type="text" >
+                </div>
+                <div id="case-param-list" style="margin-top: 10px;" ></div>
+                <div class="btn-group" style="margin-top: 10px;margin-left: 10px;float: right">
+                    <button class="btn btn-info btn-sm" onclick="saveCaseParam()">保存</button>
+                    <button class="btn btn-info btn-sm" onclick="executeCase();">执行</button>
+                </div>
+            </div>
+            <div class="col-xs-4" >
+                <div style="padding-top: 10px;">
+                    <div>返回结果</div>
+                    <pre  style="width:100%;height: 500px;overflow:scroll" class="hljs">
+                        <code class="json" id="case-result" ></code>
+                    </pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script th:src="@{~/v1/assets/js/chosen.jquery.min.js}"></script>
+<script th:replace="/pages/tpl/foot::footer"></script>
+<script th:src="@{~/v1/js/jquery.jsonEdit.js}"></script>
+<script th:src="@{~/v1/assets/js/bootstrap-table.min.js}"></script>
+<script th:src="@{~/v1/assets/js/bootstrap-table-zh-CN.min.js}"></script>
+<script th:src="@{~/v1/assets/js/toastr.min.js}"></script>
+<script th:src="@{~/v1/assets/js/highlight.min.js}"></script>
+<script type="text/javascript">
+    toastr.options = {
+        closeButton: false,  //是否显示关闭按钮（提示框右上角关闭按钮）
+        debug: false,  //是否为调试；
+        progressBar: true,  //是否显示进度条（设置关闭的超时时间进度条）
+        positionClass: "toast-center-center",  //消息框在页面显示的位置
+        onclick: null,  //点击消息框自定义事件
+        timeOut: "3000",  //自动关闭超时时间
+        showEasing: "swing",
+        hideEasing: "linear",
+        showMethod: "fadeIn",  //显示的方式
+        hideMethod: "fadeOut"  //隐藏的方式
+    };
+    let cur_svr={};
+    let svr_list=[];
+    let method_list=[];
+    let cur_method={};
+    let cur_case={};
+    let cur_case_param_list=[];
+    let case_opt_type="edit";
+
+    function loadSvrList(){
+        request.listSvr({},function (data) {
+            svr_list = data;
+            let opts = "";
+            for( let i = 0 ; i < svr_list.length; i++ ){
+                let svr = svr_list[i];
+                opts += "<option value='"+svr.id+"'>"+svr.name+"</option>";
+            }
+            $("#svr-list").append(opts);
+            cur_svr = svr_list[0];
+            loadMethodList();
+        }, function (data) {
+            toastr.error('获取服务列表失败','提示');
+        });
+    }
+
+    function loadMethodList(){
+        $('#method-list').empty();
+        request.listMethod({svrId:cur_svr.id},function (data) {
+            method_list = data;
+            let opts = "";
+            for( let i = 0 ; i < method_list.length; i++ ){
+                let method = method_list[i];
+                opts += "<option value='"+method.id+"'>"+method.name+"</option>";
+            }
+            $("#method-list").append(opts);
+            cur_method = method_list[0];
+            loadCaseList();
+        }, function (msg) {
+            toastr.error(msg,'提示');
+        });
+    }
+
+
+
+    function svrChange(sel){
+        cur_svr = svr_list[sel.selectedIndex];
+        loadMethodList();
+    }
+
+    function methodChange(sel){
+        cur_method = sel;
+        cur_method = method_list[sel.selectedIndex];
+        loadCaseList();
+    }
+
+    function caseChange(row){
+        case_opt_type="edit";
+        if(row.selected){
+            cur_case = {};
+            $('#case-param-list').innerHTML='';
+        }else{
+            cur_case = row;
+            loadCaseParamList();
+        }
+
+    }
+
+    function loadCaseParamList(){
+        request.listParamCase({caseId:cur_case.id},function(data){
+            cur_case_param_list=data;
+            initCaseParamList();
+        },function (msg){
+            toastr.error(msg,'提示');
+        })
+    }
+
+    function saveCaseParam(){
+        for(let i=0;i<cur_case_param_list.length;i++){
+            cur_case_param_list[i].value=$('#p_'+cur_case_param_list[i].id).val();
+        }
+        let params={methodId:cur_method.id,name:$('#caseName').val(), params:JSON.stringify(cur_case_param_list)};
+        if(case_opt_type=="edit"){
+            params.id=cur_case.id;
+        }
+        request.saveCase(params,function(data){
+            toastr.info('保存成功','提示');
+            loadCaseList();
+        },function (msg){
+            toastr.error(msg,'提示');
+        });
+
+    }
+
+    function executeCase(){
+        let values=[];
+        for(let i=0;i<cur_case_param_list.length;i++){
+            let param = cur_case_param_list[i];
+            values.push({value:$('#p_'+param.id).val(),type:param.type,sort:param.sort});
+        }
+        let params = {ip:cur_svr.host,port:cur_svr.port,clazzName:cur_svr.service,methodName:cur_method.name,param:JSON.stringify(values)};
+        request.cmdExecute(params,function (data){
+            toastr.info('执行成功','提示');
+            let jsdata=JSON.stringify(JSON.parse(data),null,2);
+            $('#case-result').html(jsdata);
+            hljs.initHighlightingOnLoad();
+        },function(msg){
+            toastr.error(msg,'提示');
+        });
+    }
+
+    function syntaxHighlight( json )
+    {
+        json = json.replace( /&/g, '&amp;' ).replace( /</g, '&lt;' ).replace( />/g, '&gt;' );
+        return json.replace( /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function ( match )
+        {
+            console.log(match)
+            var cls = 'number';
+            if ( /^"/.test( match ) )
+            {
+                if ( /:$/.test( match ) )
+                {
+                    cls = 'key';
+                } else
+                {
+                    cls = 'string';
+                }
+            } else if ( /true|false/.test( match ) )
+            {
+                cls = 'boolean';
+            } else if ( /null/.test( match ) )
+            {
+                cls = 'null';
+            }
+            return '<span class="' + cls + '">' + match + '</span>';
+        } );
+    }
+
+    function loadCaseList(){
+        $('#case-list').bootstrapTable("destroy");
+        $('#case-list').bootstrapTable({
+            url: '/dt/case/list?methodId='+cur_method.id,
+            striped: true,
+            cache:false,
+            pagination: true,
+            pageSize: 5,
+            pageNumber: 1,
+            sidePagination: "client",
+            clickToSelect: true,
+            singleSelect: true,
+            minimumCountColumns: 10,
+            uniqueId: "id",
+            idField: 'id',
+            columns: [{
+                checkbox:true,
+                field:"selected"
+            },{
+                field: 'id',
+                title: '标识',
+                visible:false
+            }, {
+                field: 'name',
+                title: '名称'
+            }],
+            responseHandler: function (res) {
+                if(res.code!=0){
+                    toastr.error('用例信息获取失败','提示');
+                }else{
+                    if(res.data.length>0){
+                        res.data[0].selected=true;
+                        cur_case = res.data[0];
+                        loadCaseParamList();
+                    }else{
+                        addCase();
+                    }
+                    return {"total":res.data.length,"rows":res.data};
+                };
+            },onClickRow:function(row,$element){
+                caseChange(row);
+            },
+            onLoadError: function () {
+                toastr.error('用例信息获取失败','提示');
+            }
+        });
+
+    }
+
+    function addCase(){
+        case_opt_type="add";
+        cur_case={};
+        cur_case_param_list=[];
+        $('#caseName').val('');
+        //组装case-param
+        let params = cur_method.params;
+        for(let i=0;i<params.length;i++){
+            let param = params[i];
+            let caseParam = {id:'new_'+i,case_id:"",name:param.name,value:'',type:param.type,sort:param.sort,enabled:true,add:true}
+            cur_case_param_list.push(caseParam);
+        }
+        initCaseParamList();
+    }
+
+    function initCaseParamList(){
+        $('#caseName').val(cur_case.name);
+        $('#case-param-list').empty();
+        for(let i=0;i<cur_case_param_list.length;i++){
+            let param = cur_case_param_list[i];
+            let span = '<span class="input-group-addon " style="width:120px;" >'+param.name+'</span>';
+            let input = '<input id="p_'+param.id+'" class="col-xs-12" type="text" value="'+param.value+'" >';
+            let group = '<div class="input-group col-xs-12" style="margin-top:5px; ">'+span+input+'</div>';
+            $('#case-param-list').append(group);
+        }
+    }
+
+    function deleteCase() {
+        let row=$("#case-list").bootstrapTable('getSelections');
+        if(row==0){
+            toastr.warning('请先选择需要删除的用例','提示');
+            return;
+        }
+        let params = {id:row[0].id};
+        request.deleteCase(params,function (data) {
+            toastr.warning('删除成功','提示');
+            loadCaseList();
+        }, function (msg) {
+            toastr.error(msg,'提示');
+        });
+    }
+
+    loadSvrList();
+</script>
+
+</body>
+</html>

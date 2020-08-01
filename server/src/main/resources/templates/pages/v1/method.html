@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8" />
+    <title>svr-test</title>
+    <link rel="stylesheet" th:href="@{~/v1/assets/css/chosen.css}" />
+    <link rel="stylesheet" th:href="@{~/v1/assets/css/bootstrap-table.min.css}" />
+    <link rel="stylesheet" th:href="@{~/v1/assets/css/toastr.min.css}" />
+    <script th:replace="/pages/tpl/head::header"></script>
+</head>
+<body>
+<div th:replace="/pages/tpl/top::topper"></div>
+<div class="main-container" id="main-container">
+    <script type="text/javascript">
+        try {
+            ace.settings.check('main-container', 'fixed')
+        } catch (e) {
+        }
+
+    </script>
+    <div class="main-container-inner">
+<!--        <div th:replace="/pages/tpl/menu::menuer"></div>-->
+        <div th:utext="${menuHtml}"></div>
+        <div class="main-content ">
+            <div th:replace="/pages/tpl/bread::breader"></div>
+            <div class="col-xs-5" style="padding: 15px;">
+                <div style="float:left;">
+                    <label >服务信息：</label>
+                    <select id="svr-list" onchange="svrChange(this)" class="selectpicker" style="width: 200px" data-live-search="true" name="method-list" >
+                    </select>
+                    <div class="btn-group">
+                        <button class="btn btn-info btn-sm" onclick="addMethod()">添加</button>
+                        <button class="btn btn-info btn-sm" onclick="editMethod();">编辑</button>
+                        <button class="btn btn-info btn-sm" onclick="deleteMethod();">删除</button>
+                    </div>
+                </div>
+                <table id="method-list" ></table>
+            </div>
+            <div class="col-xs-7" style="padding: 5px;">
+                <div style="float:left;">
+                    <div class="btn-group">
+                        <button class="btn btn-info btn-sm" onclick="addParam()">添加</button>
+                        <button class="btn btn-info btn-sm" onclick="editParam();">编辑</button>
+                        <button class="btn btn-info btn-sm" onclick="deleteParam();">删除</button>
+                    </div>
+                </div>
+                <table id="param-list" ></table>
+            </div>
+        </div>
+
+    </div>
+    <div class="modal fade" id="methodModal" tabindex="-1" role="dialog" aria-labelledby="methodModalLabel">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    编辑方法信息
+                </div>
+                <div class="modal-body" >
+                    <br id="method_data" class="bs-example bs-example-form" role="form" >
+                        <div class="input-group">
+                            <span class="input-group-addon">服务</span>
+                            <input id="svrName" name="svrName" readonly="readonly" type="text" class="form-control" >
+                        </div><br>
+                        <div class="input-group">
+                            <span class="input-group-addon">名称</span>
+                            <input id="name" name="name" type="text" class="form-control" >
+                        </div><br>
+                        <div class="input-group">
+                            <span class="input-group-addon">别名</span>
+                            <input id="aliaName" name="aliaName" type="text" class="form-control" >
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default btn-sm" onclick="closeMethodModal();">关闭</button>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="saveMethod();">提交</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="paramModal" tabindex="-1" role="dialog" aria-labelledby="paramModalLabel">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    编辑方法信息
+                </div>
+                <div class="modal-body" >
+                    <br id="param_data" class="bs-example bs-example-form" role="form" >
+                    <div class="input-group">
+                        <span class="input-group-addon">方法</span>
+                        <input id="methodName" name="methodName" readonly="readonly" type="text" class="form-control" >
+                    </div><br>
+                    <div class="input-group">
+                        <span class="input-group-addon">名称</span>
+                        <input id="paramName" name="paramName" type="text" class="form-control" >
+                    </div><br>
+                    <div class="input-group">
+                        <span class="input-group-addon">描述</span>
+                        <input id="description" name="description" type="text" class="form-control" >
+                    </div><br>
+                    <div class="input-group">
+                        <span class="input-group-addon">类型</span>
+                        <input id="type" name="type" type="text" class="form-control" >
+                    </div><br>
+                    <div class="input-group">
+                        <span class="input-group-addon">排序</span>
+                        <input id="sort" name="sort" type="text" class="form-control" >
+                    </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default btn-sm" onclick="closeParamModal();">关闭</button>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="saveParam();">提交</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script th:src="@{~/v1/assets/js/chosen.jquery.min.js}"></script>
+<script th:replace="/pages/tpl/foot::footer"></script>
+<script th:src="@{~/v1/js/jquery.jsonEdit.js}"></script>
+<script th:src="@{~/v1/assets/js/bootstrap-table.min.js}"></script>
+<script th:src="@{~/v1/assets/js/bootstrap-table-zh-CN.min.js}"></script>
+<script th:src="@{~/v1/assets/js/toastr.min.js}"></script>
+<script type="text/javascript">
+    toastr.options = {
+        closeButton: false,  //是否显示关闭按钮（提示框右上角关闭按钮）
+        debug: false,  //是否为调试；
+        progressBar: true,  //是否显示进度条（设置关闭的超时时间进度条）
+        positionClass: "toast-center-center",  //消息框在页面显示的位置
+        onclick: null,  //点击消息框自定义事件
+        timeOut: "3000",  //自动关闭超时时间
+        showEasing: "swing",
+        hideEasing: "linear",
+        showMethod: "fadeIn",  //显示的方式
+        hideMethod: "fadeOut"  //隐藏的方式
+    };
+    let cur_svr={};
+    let svr_list=[];
+    let cur_method={};
+    let cur_param={};
+    let method_opt_type="add";
+    let param_opt_type="add";
+
+    function loadSvrList(){
+        request.listSvr({},function (data) {
+            svr_list = data;
+            let opts = "";
+            for( let i = 0 ; i < svr_list.length; i++ ){
+                let svr = svr_list[i];
+                opts += "<option value='"+svr.id+"'>"+svr.name+"</option>";
+            }
+            $("#svr-list").append(opts);
+            cur_svr = svr_list[0];
+            loadMethodList();
+        }, function (data) {
+            toastr.error('获取服务列表失败','提示');
+        });
+    }
+
+    function showMethodModal(){
+        if(method_opt_type=="add"){
+            $("#svrName").val(cur_svr.name);
+            $("#name").val('');
+            $("#aliaName").val('');
+        }else{
+            $("#svrName").val(cur_method.svrName);
+            $("#name").val(cur_method.name);
+            $("#aliaName").val(cur_method.aliaName);
+        }
+        $('#methodModal').modal('show');
+    }
+
+    function closeMethodModal(){
+        $("#svrId").val('');
+        $("#svrName").val('');
+        $("#name").val('');
+        $("#aliaName").val('');
+        $('#methodModal').modal('hide');
+    }
+
+    function svrChange(sel){
+        cur_svr = svr_list[sel.selectedIndex];
+        loadMethodList();
+    }
+
+    function loadMethodList(){
+        $('#method-list').bootstrapTable("destroy");
+        $('#method-list').bootstrapTable({
+            url: '/dt/method/list?svrId='+cur_svr.id,
+            toolbar:'#toolbar',
+            striped: true,
+            cache:false,
+            pagination: true,
+            pageSize: 5,
+            pageNumber: 1,
+            sidePagination: "client",
+            clickToSelect: true,
+            singleSelect: true,
+            minimumCountColumns: 10,
+            uniqueId: "id",
+            idField: 'id',
+            columns: [{
+                checkbox:true,
+                field:"selected"
+            },{
+                field: 'id',
+                title: '标识',
+                visible:false
+            }, {
+                field: 'name',
+                title: '名称'
+            }, {
+                field: 'aliaName',
+                title: '别名'
+            },{
+                field: 'svrName',
+                title: '服务名'
+            }],
+            responseHandler: function (res) {
+                if(res.code!=0){
+                    toastr.error('方法信息获取失败','提示');
+                }else{
+                    if(res.data.length>0){
+                        res.data[0].selected=true;
+                        cur_method=res.data[0];
+                        loadParamList();
+                    }
+                    return {"total":res.data.length,"rows":res.data};
+                }
+
+            },
+            onClickRow:function(row,$element){
+                methodChange(row);
+            },
+            onLoadError: function () {
+                toastr.error('方法信息获取失败','提示');
+            }
+        });
+    }
+
+    function addMethod(){
+        method_opt_type="add";
+        showMethodModal();
+    }
+
+    function editMethod(){
+        var row=$("#method-list").bootstrapTable('getSelections');
+        if(row==0){
+            toastr.warning('请先选择需要编辑的方法信息','提示');
+            return;
+        }
+        cur_method=row[0];
+        method_opt_type="edit";
+        showMethodModal();
+    }
+
+    function deleteMethod() {
+        let row=$("#method-list").bootstrapTable('getSelections');
+        if(row==0){
+            toastr.warning('请先选择需要删除的方法信息','提示');
+            return;
+        }
+        let params = {id:row[0].id};
+        request.deleteMethod(params,function (data) {
+            toastr.warning('删除成功','提示');
+            loadMethodList();
+        }, function (msg) {
+            toastr.error(msg,'提示');
+        });
+    }
+
+    function saveMethod(){
+        let params={"svrId":cur_svr.id,"name":$("#name").val(),"aliaName":$("#aliaName").val()};
+        if(method_opt_type=="edit"){
+            params.id=cur_method.id;
+        }
+        request.saveMethod(params,function (data) {
+            $('#methodModal').modal('hide');
+            toastr.info('保存成功','提示');
+            loadMethodList();
+        }, function (msg) {
+            toastr.error(msg,'提示');
+        });
+    }
+
+
+
+    function methodChange(sel){
+        if(sel.selected){
+            cur_method = {};
+            $('#param-list').bootstrapTable("destroy");
+        }else {
+            cur_method = sel;
+            loadParamList();
+        }
+    }
+
+    function loadParamList(){
+        $('#param-list').bootstrapTable("destroy");
+        $('#param-list').bootstrapTable({
+            url: '/dt/param/list?methodId='+cur_method.id,
+            toolbar:'#toolbar',
+            striped: true,
+            cache:false,
+            pagination: true,
+            pageSize: 5,
+            pageNumber: 1,
+            sidePagination: "client",
+            clickToSelect: true,
+            singleSelect: true,
+            minimumCountColumns: 10,
+            uniqueId: "id",
+            idField: 'id',
+            columns: [{
+                checkbox:true
+            },{
+                field: 'id',
+                title: '标识',
+                visible:false
+            }, {
+                field: 'methodName',
+                title: '方法'
+            }, {
+                field: 'name',
+                title: '名称'
+            }, {
+                field: 'description',
+                title: '描述'
+            },{
+                field: 'type',
+                title: '类型'
+            },{
+                field: 'sort',
+                title: '排序'
+            }],
+            responseHandler: function (res) {
+                if(res.code!=0){
+                    toastr.error('参数信息获取失败','提示');
+                }else{
+                    return {"total":res.data.length,"rows":res.data};
+                }
+
+            },
+            onLoadError: function () {
+                toastr.error('参数信息获取失败','提示');
+            }
+        });
+    }
+
+    function addParam(){
+        param_opt_type="add";
+        showParamModal();
+    }
+
+    function showParamModal(){
+        if(param_opt_type=="add"){
+            let params={methodId:cur_method.id}
+            request.getParamNextSort(params,function (data) {
+                $("#methodName").val(cur_method.name);
+                $("#paramName").val('');
+                $("#description").val('');
+                $("#type").val('');
+                $("#sort").val(data);
+                $('#paramModal').modal('show');
+            }, function (msg) {
+                toastr.error('获取下一个排序失败','提示');
+            });
+        }else{
+            $("#methodName").val(cur_param.methodName);
+            $("#paramName").val(cur_param.name);
+            $("#description").val(cur_param.description);
+            $("#type").val(cur_param.type);
+            $("#sort").val(cur_param.sort);
+            $('#paramModal').modal('show');
+        }
+    }
+
+
+    function closeParamModal(){
+        $("#methodName").val('');
+        $("#paramName").val('');
+        $("#description").val('');
+        $("#type").val('');
+        $("#sort").val(0);
+        $('#paramModal').modal('hide');
+    }
+
+
+    function editParam(){
+        let row=$("#param-list").bootstrapTable('getSelections');
+        if(row==0){
+            toastr.warning('请先选择需要编辑的参数信息','提示');
+            return;
+        }
+        cur_param=row[0];
+        param_opt_type="edit";
+        showParamModal();
+    }
+
+    function deleteParam() {
+        let row=$("#param-list").bootstrapTable('getSelections');
+        if(row==0){
+            toastr.warning('请先选择需要删除的参数信息','提示');
+            return;
+        }
+        let params = {id:row[0].id};
+        request.deleteParam(params,function (data) {
+            toastr.info('删除成功','提示');
+            loadParamList();
+        }, function (data) {
+            toastr.error('删除失败','提示');
+        });
+    }
+
+    function saveParam(){
+        let params={"methodId":cur_method.id,"methodName":$("#methodName").val(),"name":$("#paramName").val(),"description":$("#description").val(),"type":$("#type").val(),"sort":$("#sort").val()};
+        if(param_opt_type=="edit"){
+            params.id=cur_param.id;
+        }
+        request.saveParam(params,function (data) {
+            $('#paramModal').modal('hide');
+            toastr.info('保存成功','提示');
+            loadParamList();
+        }, function (msg) {
+            toastr.error('保存失败','提示');
+        });
+    }
+
+    loadSvrList();
+</script>
+
+</body>
+</html>

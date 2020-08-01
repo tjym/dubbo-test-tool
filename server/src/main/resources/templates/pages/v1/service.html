@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8" />
+    <title>svr-test</title>
+    <link rel="stylesheet" th:href="@{~/v1/assets/css/chosen.css}" />
+    <link rel="stylesheet" th:href="@{~/v1/assets/css/bootstrap-table.min.css}" />
+    <link rel="stylesheet" th:href="@{~/v1/assets/css/toastr.min.css}" />
+    <script th:replace="/pages/tpl/head::header"></script>
+</head>
+<body>
+<div th:replace="/pages/tpl/top::topper"></div>
+<div class="main-container" id="main-container">
+    <script type="text/javascript">
+        try {
+            ace.settings.check('main-container', 'fixed')
+        } catch (e) {
+        }
+
+    </script>
+    <div class="main-container-inner">
+<!--        <div th:replace="/pages/tpl/menu::menuer"></div>-->
+        <div th:utext="${menuHtml}"></div>
+        <div class="main-content ">
+            <div th:replace="/pages/tpl/bread::breader"></div>
+            <div class="col-xs-12">
+                <div id="toolbar">
+                    <div class="btn-group">
+                        <button class="btn btn-info btn-sm" onclick="addSvr();">添加</button>
+                        <button class="btn btn-info btn-sm" onclick="editSvr();">编辑</button>
+                        <button class="btn btn-info btn-sm" onclick="deleteSvr();">删除</button>
+                    </div>
+                </div>
+                <table id="svr-list" ></table>
+            </div>
+
+        </div>
+
+    </div>
+    <div class="modal fade" id="svrModal" tabindex="-1" role="dialog" aria-labelledby="svrModalLabel">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    编辑服务信息
+                </div>
+                <div class="modal-body" >
+                    <br id="svr_data" class="bs-example bs-example-form" role="form" >
+                        <div class="input-group">
+                            <span class="input-group-addon">名称</span>
+                            <input id="name" name="name" type="text" class="form-control" >
+                        </div><br>
+                        <div class="input-group">
+                            <span class="input-group-addon">地址</span>
+                            <input id="host" name="host" type="text" class="form-control" >
+                        </div><br>
+                        <div class="input-group">
+                            <span class="input-group-addon">端口</span>
+                            <input id="port" name="port" type="text" class="form-control" >
+                        </div><br>
+                        <div class="input-group">
+                            <span class="input-group-addon">服务</span>
+                            <input id="service" name="service" type="text" class="form-control" >
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default btn-sm" onclick="closeSvrModal();">关闭</button>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="saveSvr();">提交</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script th:src="@{~/v1/assets/js/chosen.jquery.min.js}"></script>
+<script th:replace="/pages/tpl/foot::footer"></script>
+<script th:src="@{~/v1/js/jquery.jsonEdit.js}"></script>
+<script th:src="@{~/v1/assets/js/bootstrap-table.min.js}"></script>
+<script th:src="@{~/v1/assets/js/bootstrap-table-zh-CN.min.js}"></script>
+<script th:src="@{~/v1/assets/js/toastr.min.js}"></script>
+<script type="text/javascript">
+    toastr.options = {
+        closeButton: false,  //是否显示关闭按钮（提示框右上角关闭按钮）
+        debug: false,  //是否为调试；
+        progressBar: true,  //是否显示进度条（设置关闭的超时时间进度条）
+        positionClass: "toast-center-center",  //消息框在页面显示的位置
+        onclick: null,  //点击消息框自定义事件
+        timeOut: "3000",  //自动关闭超时时间
+        showEasing: "swing",
+        hideEasing: "linear",
+        showMethod: "fadeIn",  //显示的方式
+        hideMethod: "fadeOut"  //隐藏的方式
+    };
+    let svr_opt_type="add";
+    let cur_svr={};
+
+    $('#svr-list').bootstrapTable({
+        url: '/dt/svr/list',
+        toolbar:'#toolbar',
+        striped: true,
+        pagination: true,
+        pageSize: 5,
+        pageNumber: 1,
+        pageList: [5, 10, 15, 20, 25],
+        sidePagination: "client",
+        clickToSelect: true,
+        singleSelect: true,
+        minimumCountColumns: 10,
+        uniqueId: "id",
+        idField: 'id',
+        columns: [{
+            checkbox:true
+        },{
+            field: 'id',
+            title: '标识',
+            visible:false
+        }, {
+            field: 'name',
+            title: '名称'
+        }, {
+            field: 'host',
+            title: '地址'
+        },{
+            field: 'port',
+            title: '端口'
+        },{
+            field: 'service',
+            title: '服务'
+        }],
+        responseHandler: function (res) {
+            if(res.code!=0){
+                toastr.error('服务信息获取失败','提示');
+            }else{
+                data = res.data;
+                return {"total":res.data.length,"rows":res.data};
+            }
+
+        },
+        onLoadError: function () {
+            toastr.error('服务信息获取失败','提示');
+        }
+    });
+
+    function addSvr(){
+        svr_opt_type="add";
+        showSvrModal();
+    }
+
+    function editSvr(){
+        var row=$("#svr-list").bootstrapTable('getSelections');
+        if(row==0){
+            toastr.warning('请先选择需要编辑的服务信息','提示');
+            return;
+        }
+        svr_opt_type="edit";
+        cur_svr=row[0];
+        showSvrModal();
+    }
+
+    function showSvrModal(){
+        if(svr_opt_type=="add"){
+            $("#name").val('');
+            $("#host").val('');
+            $("#port").val('');
+            $("#service").val('');
+        }else{
+            $("#name").val(cur_svr.name);
+            $("#host").val(cur_svr.host);
+            $("#service").val(cur_svr.service);
+            $("#port").val(cur_svr.port);
+        }
+        $('#svrModal').modal('show');
+    }
+    function closeSvrModal(){
+        $("#name").val('');
+        $("#host").val('');
+        $("#port").val('');
+        $("#service").val('');
+        $('#svrModal').modal('hide');
+    }
+
+    function deleteSvr() {
+        let row=$("#svr-list").bootstrapTable('getSelections');
+        if(row==0){
+            toastr.warning('请先选择需要删除的服务信息','提示');
+            return;
+        }
+        request.deleteSvr({id:row[0].id},function (data) {
+            toastr.info('删除成功','提示');
+            $('#svr-list').bootstrapTable(('refresh'));
+        }, function (msg) {
+            toastr.error(msg,'提示');
+        });
+    }
+
+    function saveSvr(){
+        let params={"name":$("#name").val(),"host":$("#host").val(),"port":$("#port").val(),"service":$("#service").val()};
+        if(svr_opt_type=="edit"){
+            params.id=cur_svr.id;
+        }
+        request.saveSvr(params,function (data) {
+            $('#svrModal').modal('hide');
+            toastr.info('保存成功','提示');
+            $('#svr-list').bootstrapTable(('refresh'));
+        }, function (msg) {
+            toastr.error(msg,'提示');
+        });
+    }
+</script>
+
+</body>
+</html>
